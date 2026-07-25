@@ -104,7 +104,8 @@ function newEmptyConfig() {
     cloudId: null,
     likes: [],
     views: 0,
-    ratings: []
+    ratings: [],
+    comments: []
   };
 }
 
@@ -425,6 +426,12 @@ async function openConfigModal(configId) {
     }
   }
 
+  renderConfigModal(config);
+  document.getElementById("modal-overlay").classList.add("active");
+}
+
+// Re-render le contenu de la modale sans recompter de vue (utilisé après un like/commentaire)
+function renderConfigModal(config) {
   const avg = getAverageRating(config);
   const total = configTotal(config);
 
@@ -447,7 +454,11 @@ async function openConfigModal(configId) {
     <ul class="modal-comp-list">
       ${config.components.map(c => `
         <li>
-          <span>${c.type} — ${escapeHtml(c.name || "?")} ${c.state === "Occasion" ? "(occasion)" : ""}</span>
+          <span>
+            ${c.type} — ${escapeHtml(c.name || "?")} ${c.state === "Occasion" ? "(occasion)" : ""}
+            ${c.link ? `<a href="${escapeHtml(c.link)}" target="_blank" rel="noopener noreferrer" class="comp-link-out">🔗 Lien</a>` : ""}
+            ${c.store ? `<span class="comp-store-out muted">· ${escapeHtml(c.store)}</span>` : ""}
+          </span>
           <span>${c.price ? parseFloat(c.price).toFixed(2) + " €" : "-"}</span>
         </li>
       `).join("")}
@@ -456,7 +467,25 @@ async function openConfigModal(configId) {
     <div class="rating-widget">
       ${[1,2,3,4,5].map(n => `<button class="btn small rate-btn" data-rate="${n}">${n} ⭐</button>`).join(" ")}
     </div>
+    <h3>Commentaires (${(config.comments || []).length})</h3>
+    <div class="comment-form">
+      <textarea id="comment-input" placeholder="Écris un commentaire..."></textarea>
+      <button id="submit-comment" class="btn small primary">Publier</button>
+    </div>
+    <ul class="comment-list">
+      ${(config.comments || []).slice().reverse().map(c => `
+        <li class="comment-item">
+          ${c.photoURL ? `<img class="author-avatar" src="${c.photoURL}" alt="">` : `<span class="author-avatar author-avatar-fallback">🙂</span>`}
+          <div>
+            <div class="comment-meta"><strong>${escapeHtml(c.pseudo)}</strong> <span class="muted">${formatDate(c.date)}</span></div>
+            <div class="comment-text">${escapeHtml(c.text)}</div>
+          </div>
+        </li>
+      `).join("") || `<li class="muted">Aucun commentaire pour le moment.</li>`}
+    </ul>
   `;
+
+  document.getElementById("submit-comment").addEventListener("click", () => submitComment(config.id));
 
   document.getElementById("modal-content").querySelectorAll(".rate-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -464,8 +493,6 @@ async function openConfigModal(configId) {
       document.getElementById("modal-overlay").classList.remove("active");
     });
   });
-
-  document.getElementById("modal-overlay").classList.add("active");
 }
 
 async function rateConfig(configId, value) {
@@ -490,6 +517,52 @@ async function rateConfig(configId, value) {
     Storage.saveConfigs(configs);
   }
   if (state.currentPage === "communaute") renderCommunity();
+}
+
+async function submitComment(configId) {
+  if (!requireLogin("Connecte-toi avec Google pour commenter.")) return;
+
+  const input = document.getElementById("comment-input");
+  const text = input.value.trim();
+  if (!text) return;
+  if (text.length > 500) {
+    alert("Commentaire trop long (500 caractères max).");
+    return;
+  }
+
+  const profile = getProfile();
+  const comment = {
+    uid: Cloud.enabled ? Cloud.uid : null,
+    pseudo: profile.pseudo,
+    photoURL: profile.photoURL || null,
+    text,
+    date: Date.now()
+  };
+
+  if (Cloud.enabled) {
+    try {
+      await Cloud.addComment(configId, comment);
+    } catch (err) {
+      alert(err.message);
+      return;
+    }
+  } else {
+    const configs = Storage.getConfigs();
+    const config = configs.find(c => c.id === configId);
+    if (!config) return;
+    config.comments = config.comments || [];
+    config.comments.push(comment);
+    Storage.saveConfigs(configs);
+  }
+
+  // Met à jour le cache local et rouvre la modale à jour
+  const cached = cloudCache.find(c => c.id === configId);
+  if (cached) {
+    cached.comments = cached.comments || [];
+    cached.comments.push(comment);
+  }
+  input.value = "";
+  if (cached) renderConfigModal(cached);
 }
 
 document.getElementById("modal-close").addEventListener("click", () => {

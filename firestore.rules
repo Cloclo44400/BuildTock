@@ -18,13 +18,13 @@ service cloud.firestore {
 
       // Modifier une config :
       // - l'auteur peut tout modifier (édition de sa propre config)
-      // - un autre utilisateur connecté peut UNIQUEMENT modifier likes / ratings / viewedBy / views
+      // - un autre utilisateur connecté peut UNIQUEMENT modifier likes / ratings / viewedBy / views / comments
       //   (empêche de trafiquer le nom, le prix, les composants d'une config qui n'est pas la sienne)
       allow update: if request.auth != null && (
         resource.data.authorId == request.auth.uid
         ||
         request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['likes', 'ratings', 'viewedBy', 'views'])
+          .hasOnly(['likes', 'ratings', 'viewedBy', 'views', 'comments'])
       );
 
       // Supprimer : seul l'auteur peut supprimer sa config

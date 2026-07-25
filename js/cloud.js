@@ -98,7 +98,8 @@ const Cloud = {
       date: config.date || Date.now(),
       views: config.views || 0,
       likes: config.likes || [],
-      ratings: config.ratings || []
+      ratings: config.ratings || [],
+      comments: config.comments || []
     };
     if (config.cloudId) {
       await this.configsCollection().doc(config.cloudId).set(payload, { merge: true });
@@ -138,6 +139,20 @@ const Cloud = {
       if (existing) existing.value = value;
       else ratings.push({ uid: this.uid, value });
       t.update(ref, { ratings });
+    });
+  },
+
+  async addComment(cloudId, comment) {
+    if (!this.enabled) return;
+    if (!this.isLoggedIn()) throw new Error("Connecte-toi avec Google pour commenter");
+    const ref = this.configsCollection().doc(cloudId);
+    await this.db.runTransaction(async (t) => {
+      const doc = await t.get(ref);
+      if (!doc.exists) return;
+      const data = doc.data();
+      const comments = data.comments || [];
+      comments.push(comment);
+      t.update(ref, { comments });
     });
   },
 

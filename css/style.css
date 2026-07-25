@@ -301,4 +301,20 @@ textarea { min-height: 70px; resize: vertical; }
 .modal-close:hover { color: var(--text); }
 .modal h2 { margin-top: 0; }
 .modal-comp-list { list-style: none; padding: 0; }
-.modal-comp-list li { padding: 8px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; }
+.modal-comp-list li { padding: 8px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 12px; }
+.comp-link-out { color: var(--blue); text-decoration: none; margin-left: 8px; font-size: 0.85rem; }
+.comp-link-out:hover { text-decoration: underline; }
+.comp-store-out { margin-left: 6px; font-size: 0.85rem; }
+
+.comment-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.comment-form textarea { min-height: 60px; }
+.comment-form button { align-self: flex-end; }
+
+.comment-list { list-style: none; padding: 0; margin: 0; }
+.comment-item {
+  display: flex; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.comment-item:last-child { border-bottom: none; }
+.comment-item .author-avatar { width: 28px; height: 28px; margin-top: 2px; }
+.comment-meta { font-size: 0.85rem; margin-bottom: 4px; }
+.comment-text { font-size: 0.9rem; white-space: pre-wrap; word-break: break-word; }

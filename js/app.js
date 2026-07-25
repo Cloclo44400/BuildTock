@@ -542,6 +542,66 @@ async function renderProfile() {
   attachCardEvents();
 }
 
+// Redimensionne/compresse une image dans un carré (via canvas) et renvoie un data URL JPEG léger
+function resizeImageFile(file, maxSize = 160, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Impossible de lire le fichier."));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Fichier image invalide."));
+      img.onload = () => {
+        // Recadrage carré centré
+        const side = Math.min(img.width, img.height);
+        const sx = (img.width - side) / 2;
+        const sy = (img.height - side) / 2;
+
+        const canvas = document.createElement("canvas");
+        canvas.width = maxSize;
+        canvas.height = maxSize;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, sx, sy, side, side, 0, 0, maxSize, maxSize);
+
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById("profile-photo-input").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    alert("Merci de choisir un fichier image.");
+    e.target.value = "";
+    return;
+  }
+
+  try {
+    const dataUrl = await resizeImageFile(file);
+    const profile = getProfile();
+    profile.photoURL = dataUrl;
+    profile.customPhoto = true;
+    Storage.saveProfile(profile);
+
+    renderProfileAvatar();
+    renderAuthZone(Cloud.user);
+
+    const status = document.getElementById("profile-save-status");
+    status.textContent = "✓ Photo mise à jour — pense à cliquer sur \"Enregistrer le profil\" pour la publier sur tes configs";
+    status.classList.add("visible");
+    clearTimeout(status._hideTimeout);
+    status._hideTimeout = setTimeout(() => status.classList.remove("visible"), 4000);
+  } catch (err) {
+    console.error(err);
+    alert("Erreur lors du chargement de l'image : " + err.message);
+  }
+  e.target.value = "";
+});
+
 document.getElementById("save-profile").addEventListener("click", () => {
   const profile = getProfile();
   const oldPseudo = profile.pseudo;
@@ -610,8 +670,8 @@ function renderAuthZone(user) {
       profile.googleSynced = true;
       Storage.saveProfile(profile);
     }
-    // Garde toujours la photo Google à jour (elle ne se personnalise pas dans l'app)
-    if (profile.photoURL !== user.photoURL) {
+    // Garde toujours la photo Google à jour, sauf si l'utilisateur a mis une photo personnalisée
+    if (!profile.customPhoto && profile.photoURL !== user.photoURL) {
       profile.photoURL = user.photoURL || null;
       Storage.saveProfile(profile);
     }

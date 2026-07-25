@@ -544,30 +544,44 @@ async function renderProfile() {
 
 // Redimensionne/compresse une image dans un carré (via canvas) et renvoie un data URL JPEG léger
 function resizeImageFile(file, maxSize = 160, quality = 0.85) {
-  return new Promise((resolve, reject) => {
+  const work = new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("Impossible de lire le fichier."));
     reader.onload = () => {
       const img = new Image();
-      img.onerror = () => reject(new Error("Fichier image invalide."));
+      img.onerror = () => reject(new Error("Fichier image invalide ou corrompu."));
       img.onload = () => {
-        // Recadrage carré centré
-        const side = Math.min(img.width, img.height);
-        const sx = (img.width - side) / 2;
-        const sy = (img.height - side) / 2;
+        try {
+          // Recadrage carré centré
+          const side = Math.min(img.naturalWidth, img.naturalHeight);
+          const sx = (img.naturalWidth - side) / 2;
+          const sy = (img.naturalHeight - side) / 2;
 
-        const canvas = document.createElement("canvas");
-        canvas.width = maxSize;
-        canvas.height = maxSize;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, sx, sy, side, side, 0, 0, maxSize, maxSize);
+          const canvas = document.createElement("canvas");
+          canvas.width = maxSize;
+          canvas.height = maxSize;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("Le navigateur ne permet pas de traiter l'image (canvas indisponible).");
+          ctx.drawImage(img, sx, sy, side, side, 0, 0, maxSize, maxSize);
 
-        resolve(canvas.toDataURL("image/jpeg", quality));
+          const dataUrl = canvas.toDataURL("image/jpeg", quality);
+          if (!dataUrl || dataUrl === "data:,") throw new Error("Échec de la conversion de l'image.");
+          resolve(dataUrl);
+        } catch (err) {
+          reject(err);
+        }
       };
       img.src = reader.result;
     };
     reader.readAsDataURL(file);
   });
+
+  // Filet de sécurité : si rien ne se passe après 8s (image bloquée, CSP, etc.), on abandonne proprement
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error("Le traitement de l'image a pris trop de temps. Essaie une image plus petite.")), 8000)
+  );
+
+  return Promise.race([work, timeout]);
 }
 
 document.getElementById("profile-photo-input").addEventListener("change", async (e) => {
@@ -580,8 +594,15 @@ document.getElementById("profile-photo-input").addEventListener("change", async 
     return;
   }
 
+  const status = document.getElementById("profile-save-status");
+  status.textContent = "⏳ Traitement de l'image...";
+  status.classList.add("visible");
+
   try {
+    console.log("[BuildTock] Photo sélectionnée :", file.name, file.type, file.size + " octets");
     const dataUrl = await resizeImageFile(file);
+    console.log("[BuildTock] Image traitée avec succès, taille finale :", dataUrl.length + " caractères");
+
     const profile = getProfile();
     profile.photoURL = dataUrl;
     profile.customPhoto = true;
@@ -590,13 +611,12 @@ document.getElementById("profile-photo-input").addEventListener("change", async 
     renderProfileAvatar();
     renderAuthZone(Cloud.user);
 
-    const status = document.getElementById("profile-save-status");
-    status.textContent = "✓ Photo mise à jour — pense à cliquer sur \"Enregistrer le profil\" pour la publier sur tes configs";
-    status.classList.add("visible");
+    status.textContent = "✓ Photo mise à jour — clique sur \"Enregistrer le profil\" pour la publier sur tes configs";
     clearTimeout(status._hideTimeout);
-    status._hideTimeout = setTimeout(() => status.classList.remove("visible"), 4000);
+    status._hideTimeout = setTimeout(() => status.classList.remove("visible"), 5000);
   } catch (err) {
-    console.error(err);
+    console.error("[BuildTock] Erreur upload photo :", err);
+    status.classList.remove("visible");
     alert("Erreur lors du chargement de l'image : " + err.message);
   }
   e.target.value = "";

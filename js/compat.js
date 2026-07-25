@@ -67,31 +67,5 @@ const Compat = {
     }
 
     return results;
-  },
-
-  computeScore(components, challenge) {
-    const total = components.reduce((sum, c) => sum + (parseFloat(c.price) || 0), 0);
-    let score = 100;
-
-    // Pénalité dépassement budget
-    if (total > challenge.budget) {
-      const overRatio = (total - challenge.budget) / challenge.budget;
-      score -= Math.min(60, overRatio * 200);
-    } else {
-      // Bonus si proche du budget sans le dépasser (utilisation efficace)
-      const usage = total / challenge.budget;
-      score -= (1 - usage) * 20; // pénalité légère si trop loin du budget
-    }
-
-    // Compatibilité
-    const compat = this.check(components, challenge.budget);
-    const failedCount = compat.filter(r => !r.ok).length;
-    score -= failedCount * 8;
-
-    // Nombre de composants minimum (heuristique générique)
-    if (components.length < 4) score -= 15;
-
-    score = Math.max(0, Math.min(100, Math.round(score)));
-    return { score, total, compat };
   }
 };

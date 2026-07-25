@@ -97,8 +97,7 @@ const Cloud = {
       date: config.date || Date.now(),
       views: config.views || 0,
       likes: config.likes || [],
-      ratings: config.ratings || [],
-      challengeId: config.challengeId || null
+      ratings: config.ratings || []
     };
     if (config.cloudId) {
       await this.configsCollection().doc(config.cloudId).set(payload, { merge: true });

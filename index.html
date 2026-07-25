@@ -12,7 +12,6 @@
   <div class="logo" data-nav="accueil">🖥️ Build<span>Tock</span></div>
   <nav class="mainnav">
     <button data-nav="accueil" class="nav-btn active">Accueil</button>
-    <button data-nav="defis" class="nav-btn">Défis</button>
     <button data-nav="creation" class="nav-btn">Création libre</button>
     <button data-nav="communaute" class="nav-btn">Communauté</button>
     <button data-nav="profil" class="nav-btn">Profil</button>
@@ -28,30 +27,18 @@
       <h1>Build<span>Tock</span></h1>
       <p>Crée, partage et compare tes configurations PC.</p>
       <div class="hero-actions">
-        <button class="btn primary" data-nav="defis">🎯 Mode Défis</button>
-        <button class="btn" data-nav="creation">🛠️ Création libre</button>
+        <button class="btn primary" data-nav="creation">🛠️ Création libre</button>
         <button class="btn" data-nav="communaute">🌐 Communauté</button>
       </div>
     </div>
 
     <h2 class="section-title">Dernières configurations</h2>
     <div id="home-latest" class="card-grid"></div>
-
-    <h2 class="section-title">Défis populaires</h2>
-    <div id="home-challenges" class="card-grid"></div>
   </section>
 
-  <!-- DEFIS -->
-  <section id="page-defis" class="page">
-    <h1>Mode Défis</h1>
-    <p class="muted">Choisis un défi et construis la meilleure config possible dans les contraintes données.</p>
-    <div id="challenge-list" class="card-grid"></div>
-  </section>
-
-  <!-- CREATION LIBRE / BUILDER (aussi utilisé pour les défis) -->
+  <!-- CREATION LIBRE / BUILDER -->
   <section id="page-creation" class="page">
-    <h1 id="builder-title">Création libre</h1>
-    <div id="builder-challenge-info" class="challenge-banner" style="display:none;"></div>
+    <h1>Création libre</h1>
 
     <div class="builder-grid">
       <div class="builder-form">
@@ -88,10 +75,6 @@
         </div>
         <h3>Compatibilité</h3>
         <ul id="compat-list" class="compat-list"></ul>
-        <div id="challenge-score" class="challenge-score" style="display:none;">
-          <h3>Score du défi</h3>
-          <div class="score-value" id="score-value">-</div>
-        </div>
       </aside>
     </div>
   </section>
@@ -118,13 +101,18 @@
     <div class="profile-box">
       <div class="avatar">🙂</div>
       <div>
+        <label>Pseudo</label>
         <input type="text" id="profile-pseudo" placeholder="Ton pseudo" value="Joueur">
+        <label>Bio</label>
         <textarea id="profile-bio" placeholder="Bio..."></textarea>
+        <div class="profile-save-row">
+          <button id="save-profile" class="btn primary">💾 Enregistrer le profil</button>
+          <span id="profile-save-status" class="profile-save-status"></span>
+        </div>
       </div>
     </div>
     <div class="stats-grid">
       <div class="stat-card"><strong id="stat-configs">0</strong><span>Configurations</span></div>
-      <div class="stat-card"><strong id="stat-challenges">0</strong><span>Défis réussis</span></div>
       <div class="stat-card"><strong id="stat-likes">0</strong><span>Likes reçus</span></div>
     </div>
     <h2 class="section-title">Mes configurations</h2>

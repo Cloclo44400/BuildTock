@@ -3,7 +3,6 @@
 let state = {
   currentPage: "accueil",
   currentConfig: null,      // config en cours d'édition
-  activeChallenge: null,    // défi en cours (ou null en création libre)
 };
 
 let cloudCache = []; // dernière liste de configs publiées récupérées (cloud ou local selon dispo)
@@ -53,7 +52,6 @@ function navigate(pageId) {
   state.currentPage = pageId;
 
   if (pageId === "accueil") renderHome();
-  if (pageId === "defis") renderChallenges();
   if (pageId === "communaute") renderCommunity();
   if (pageId === "profil") renderProfile();
 }
@@ -73,42 +71,10 @@ async function renderHome() {
     ? configs.map(renderConfigCard).join("")
     : `<p class="muted">Aucune configuration publiée pour le moment. Sois le premier !</p>`;
 
-  const popularChallenges = CHALLENGES.slice(0, 3);
-  document.getElementById("home-challenges").innerHTML = popularChallenges.map(renderChallengeCard).join("");
-
   attachCardEvents();
-}
-
-// ---------- DEFIS ----------
-
-function renderChallenges() {
-  document.getElementById("challenge-list").innerHTML = CHALLENGES.map(renderChallengeCard).join("");
-  attachCardEvents();
-}
-
-function renderChallengeCard(ch) {
-  return `
-    <div class="card" data-challenge="${ch.id}">
-      <span class="badge ${ch.difficulty}">${difficultyLabel(ch.difficulty)}</span>
-      <h3>${ch.title}</h3>
-      <p class="meta">${ch.description}</p>
-      <div class="price">${ch.budget} € max</div>
-      <div class="footer-row">
-        <span>${ch.constraints.length} contrainte(s)</span>
-        <button class="btn small">Relever le défi</button>
-      </div>
-    </div>
-  `;
-}
-
-function difficultyLabel(d) {
-  return { easy: "Facile", medium: "Moyen", hard: "Difficile" }[d] || d;
 }
 
 function attachCardEvents() {
-  document.querySelectorAll("[data-challenge]").forEach(card => {
-    card.addEventListener("click", () => startChallenge(card.dataset.challenge));
-  });
   document.querySelectorAll("[data-config]").forEach(card => {
     card.addEventListener("click", (e) => {
       if (e.target.closest("button")) return; // les boutons gèrent leurs propres clics
@@ -123,30 +89,7 @@ function attachCardEvents() {
   });
 }
 
-function startChallenge(challengeId) {
-  if (!requireLogin("Connecte-toi avec Google pour relever un défi.")) return;
-
-  const challenge = CHALLENGES.find(c => c.id === challengeId);
-  state.activeChallenge = challenge;
-  state.currentConfig = newEmptyConfig();
-  state.currentConfig.budget = challenge.budget;
-  state.currentConfig.challengeId = challenge.id;
-
-  document.getElementById("builder-title").textContent = "Défi : " + challenge.title;
-  const banner = document.getElementById("builder-challenge-info");
-  banner.style.display = "block";
-  banner.innerHTML = `
-    <strong>${challenge.title}</strong> — ${challenge.description}<br>
-    <span class="muted">Contraintes : ${challenge.constraints.join(" · ")}</span>
-  `;
-  document.getElementById("challenge-score").style.display = "block";
-  document.getElementById("cfg-budget").value = challenge.budget;
-
-  loadConfigIntoBuilder(state.currentConfig);
-  navigate("creation");
-}
-
-// ---------- BUILDER (création libre + défis) ----------
+// ---------- BUILDER (création libre) ----------
 
 function newEmptyConfig() {
   return {
@@ -161,8 +104,7 @@ function newEmptyConfig() {
     cloudId: null,
     likes: [],
     views: 0,
-    ratings: [],
-    challengeId: null
+    ratings: []
   };
 }
 
@@ -257,11 +199,6 @@ function updateSummary() {
   document.getElementById("compat-list").innerHTML = compatResults.map(r =>
     `<li class="${r.ok ? "compat-ok" : "compat-warn"}">${r.ok ? "✓" : "⚠"} ${r.text}</li>`
   ).join("");
-
-  if (state.activeChallenge) {
-    const { score } = Compat.computeScore(components, state.activeChallenge);
-    document.getElementById("score-value").textContent = score + " / 100";
-  }
 }
 
 document.getElementById("cfg-budget").addEventListener("input", updateSummary);
@@ -288,18 +225,6 @@ document.getElementById("save-config").addEventListener("click", () => {
   if (!state.currentConfig.name) {
     alert("Merci de donner un nom à ta configuration avant de sauvegarder.");
     return;
-  }
-
-  // Vérifie succès du défi
-  if (state.activeChallenge) {
-    const { score } = Compat.computeScore(state.currentConfig.components, state.activeChallenge);
-    if (score >= 60) {
-      const profile = getProfile();
-      if (!profile.challengesCompleted.includes(state.activeChallenge.id)) {
-        profile.challengesCompleted.push(state.activeChallenge.id);
-        Storage.saveProfile(profile);
-      }
-    }
   }
 
   Storage.addOrUpdateConfig(state.currentConfig);
@@ -368,10 +293,6 @@ document.getElementById("import-config").addEventListener("change", (e) => {
       const imported = JSON.parse(reader.result);
       imported.id = Storage.uid(); // évite les collisions
       state.currentConfig = imported;
-      state.activeChallenge = null;
-      document.getElementById("builder-challenge-info").style.display = "none";
-      document.getElementById("challenge-score").style.display = "none";
-      document.getElementById("builder-title").textContent = "Création libre";
       loadConfigIntoBuilder(imported);
     } catch (err) {
       alert("Fichier JSON invalide.");
@@ -595,7 +516,6 @@ async function renderProfile() {
   const totalLikes = myConfigs.reduce((sum, c) => sum + (c.likes ? c.likes.length : 0), 0);
 
   document.getElementById("stat-configs").textContent = myConfigs.length;
-  document.getElementById("stat-challenges").textContent = profile.challengesCompleted.length;
   document.getElementById("stat-likes").textContent = totalLikes;
 
   document.getElementById("profile-configs").innerHTML = myConfigs.length
@@ -605,24 +525,29 @@ async function renderProfile() {
   attachCardEvents();
 }
 
-document.getElementById("profile-pseudo").addEventListener("change", (e) => {
+document.getElementById("save-profile").addEventListener("click", () => {
   const profile = getProfile();
   const oldPseudo = profile.pseudo;
-  profile.pseudo = e.target.value.trim() || "Joueur";
+  const newPseudo = document.getElementById("profile-pseudo").value.trim() || "Joueur";
+  const newBio = document.getElementById("profile-bio").value;
+
+  profile.pseudo = newPseudo;
+  profile.bio = newBio;
   Storage.saveProfile(profile);
 
-  // met à jour l'auteur des configs existantes liées à l'ancien pseudo
-  const configs = Storage.getConfigs();
-  configs.forEach(c => { if (c.author === oldPseudo) c.author = profile.pseudo; });
-  Storage.saveConfigs(configs);
+  // Met à jour l'auteur des configs locales liées à l'ancien pseudo (mode hors ligne)
+  if (oldPseudo !== newPseudo) {
+    const configs = Storage.getConfigs();
+    let changed = false;
+    configs.forEach(c => { if (c.author === oldPseudo) { c.author = newPseudo; changed = true; } });
+    if (changed) Storage.saveConfigs(configs);
+  }
 
-  renderProfile();
-});
-
-document.getElementById("profile-bio").addEventListener("change", (e) => {
-  const profile = getProfile();
-  profile.bio = e.target.value;
-  Storage.saveProfile(profile);
+  const status = document.getElementById("profile-save-status");
+  status.textContent = "✓ Profil enregistré";
+  status.classList.add("visible");
+  clearTimeout(status._hideTimeout);
+  status._hideTimeout = setTimeout(() => status.classList.remove("visible"), 2500);
 });
 
 // ---------- UTILS ----------
@@ -645,7 +570,9 @@ renderComponents();
 
 Cloud.onAuthChange = (user) => {
   renderAuthZone(user);
-  if (["accueil", "communaute", "profil"].includes(state.currentPage)) navigate(state.currentPage);
+  // On ne re-render pas automatiquement la page Profil : ça écraserait le pseudo/bio
+  // en cours de saisie à chaque changement d'état de connexion (ex: rafraîchissement de token).
+  if (["accueil", "communaute"].includes(state.currentPage)) navigate(state.currentPage);
 };
 
 function renderAuthZone(user) {

@@ -240,6 +240,14 @@ textarea { min-height: 70px; resize: vertical; }
 }
 .profile-box > div { flex: 1; }
 .profile-box input { margin-bottom: 10px; font-weight: 600; }
+.profile-save-row { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.profile-save-status {
+  color: var(--green);
+  font-size: 0.85rem;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.profile-save-status.visible { opacity: 1; }
 .avatar {
   width: 70px; height: 70px; border-radius: 50%;
   background: var(--blue-soft); display: flex; align-items: center; justify-content: center;

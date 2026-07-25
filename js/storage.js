@@ -38,11 +38,10 @@ const Storage = {
     try {
       return JSON.parse(localStorage.getItem(STORAGE_KEYS.profile)) || {
         pseudo: "Joueur",
-        bio: "",
-        challengesCompleted: []
+        bio: ""
       };
     } catch (e) {
-      return { pseudo: "Joueur", bio: "", challengesCompleted: [] };
+      return { pseudo: "Joueur", bio: "" };
     }
   },
 

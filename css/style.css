@@ -300,6 +300,32 @@ textarea { min-height: 70px; resize: vertical; }
 }
 .modal-close:hover { color: var(--text); }
 .modal h2 { margin-top: 0; }
+.modal-title-row {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+}
+.modal-title-row h2 { margin: 0; }
+
+.app-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.25s ease;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.app-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
 .modal-comp-list { list-style: none; padding: 0; }
 .modal-comp-list li { padding: 8px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 12px; }
 .comp-link-out { color: var(--blue); text-decoration: none; margin-left: 8px; font-size: 0.85rem; }

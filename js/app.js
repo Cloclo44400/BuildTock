@@ -87,6 +87,57 @@ function attachCardEvents() {
       toggleLike(btn.dataset.like);
     });
   });
+  document.querySelectorAll("[data-share]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      shareConfig(btn.dataset.share);
+    });
+  });
+}
+
+function shareConfig(configId) {
+  const config = cloudCache.find(c => c.id === configId);
+  const url = new URL(window.location.href);
+  url.search = ""; // enlève d'éventuels anciens paramètres
+  url.searchParams.set("config", configId);
+  const shareUrl = url.toString();
+
+  if (navigator.share) {
+    navigator.share({
+      title: config ? config.name : "BuildTock",
+      text: config ? `Découvre cette configuration PC : ${config.name}` : "Découvre cette configuration PC",
+      url: shareUrl
+    }).catch(err => {
+      // L'utilisateur a annulé le partage ou une erreur est survenue : pas grave, on ne fait rien
+      if (err.name !== "AbortError") console.error(err);
+    });
+    return;
+  }
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      showToast("🔗 Lien copié dans le presse-papier !");
+    }).catch(() => {
+      prompt("Copie ce lien pour partager la configuration :", shareUrl);
+    });
+  } else {
+    prompt("Copie ce lien pour partager la configuration :", shareUrl);
+  }
+}
+
+let toastTimeout = null;
+function showToast(message) {
+  let toast = document.getElementById("app-toast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "app-toast";
+    toast.className = "app-toast";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.classList.add("visible");
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => toast.classList.remove("visible"), 2500);
 }
 
 // ---------- BUILDER (création libre) ----------
@@ -331,6 +382,7 @@ function renderConfigCard(config) {
         <span>⭐ ${avgRating ? avgRating.toFixed(1) : "-"} · 👁 ${config.views}</span>
         <div class="actions">
           <button data-like="${config.id}" class="${isLiked ? "liked" : ""}">❤ ${config.likes.length}</button>
+          <button data-share="${config.id}" title="Partager">🔗</button>
         </div>
       </div>
     </div>
@@ -440,7 +492,10 @@ function renderConfigModal(config) {
     : `<span class="author-avatar author-avatar-fallback">🙂</span>`;
 
   document.getElementById("modal-content").innerHTML = `
-    <h2>${escapeHtml(config.name)}</h2>
+    <div class="modal-title-row">
+      <h2>${escapeHtml(config.name)}</h2>
+      <button id="modal-share-btn" class="btn small ghost" title="Partager">🔗 Partager</button>
+    </div>
     <p class="meta author-line">${authorPhoto}Par ${escapeHtml(config.author)} · ${formatDate(config.date)}</p>
     <p>${escapeHtml(config.description || "")}</p>
     <div class="summary-box" style="margin: 16px 0;">
@@ -486,6 +541,7 @@ function renderConfigModal(config) {
   `;
 
   document.getElementById("submit-comment").addEventListener("click", () => submitComment(config.id));
+  document.getElementById("modal-share-btn").addEventListener("click", () => shareConfig(config.id));
 
   document.getElementById("modal-content").querySelectorAll(".rate-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -791,7 +847,20 @@ function renderAuthZone(user) {
   }
 }
 
-Cloud.init().finally(() => {
+Cloud.init().finally(async () => {
   renderAuthZone(Cloud.user);
-  navigate("accueil");
+
+  const sharedConfigId = new URLSearchParams(window.location.search).get("config");
+  if (sharedConfigId) {
+    navigate("communaute");
+    await fetchPublishedConfigs();
+    const exists = cloudCache.some(c => c.id === sharedConfigId);
+    if (exists) {
+      openConfigModal(sharedConfigId);
+    } else {
+      showToast("⚠ Configuration introuvable (elle a peut-être été supprimée).");
+    }
+  } else {
+    navigate("accueil");
+  }
 });

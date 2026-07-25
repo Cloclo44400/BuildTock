@@ -249,6 +249,7 @@ document.getElementById("publish-config").addEventListener("click", async () => 
   state.currentConfig.published = true;
   state.currentConfig.date = Date.now();
   state.currentConfig.author = getProfile().pseudo;
+  state.currentConfig.authorPhotoURL = getProfile().photoURL || null;
 
   const btn = document.getElementById("publish-config");
   btn.disabled = true;
@@ -317,11 +318,13 @@ function renderConfigCard(config) {
   const avgRating = getAverageRating(config);
   const myIdentity = Cloud.enabled ? Cloud.uid : getProfile().pseudo;
   const isLiked = (config.likes || []).includes(myIdentity);
+  const authorPhoto = config.authorPhotoURL
+    ? `<img class="author-avatar" src="${config.authorPhotoURL}" alt="">`
+    : `<span class="author-avatar author-avatar-fallback">🙂</span>`;
   return `
     <div class="card" data-config="${config.id}">
-      <span class="badge">${config.name ? "" : ""}</span>
       <h3>${escapeHtml(config.name)}</h3>
-      <p class="meta">${escapeHtml(config.author)} · ${formatDate(config.date)}</p>
+      <p class="meta author-line">${authorPhoto}${escapeHtml(config.author)} · ${formatDate(config.date)}</p>
       <div class="price">${configTotal(config).toFixed(2)} €${config.budget ? " / " + config.budget + " €" : ""}</div>
       <div class="footer-row">
         <span>⭐ ${avgRating ? avgRating.toFixed(1) : "-"} · 👁 ${config.views}</span>
@@ -425,9 +428,13 @@ async function openConfigModal(configId) {
   const avg = getAverageRating(config);
   const total = configTotal(config);
 
+  const authorPhoto = config.authorPhotoURL
+    ? `<img class="author-avatar" src="${config.authorPhotoURL}" alt="">`
+    : `<span class="author-avatar author-avatar-fallback">🙂</span>`;
+
   document.getElementById("modal-content").innerHTML = `
     <h2>${escapeHtml(config.name)}</h2>
-    <p class="meta">Par ${escapeHtml(config.author)} · ${formatDate(config.date)}</p>
+    <p class="meta author-line">${authorPhoto}Par ${escapeHtml(config.author)} · ${formatDate(config.date)}</p>
     <p>${escapeHtml(config.description || "")}</p>
     <div class="summary-box" style="margin: 16px 0;">
       <div class="summary-row"><span>Prix total</span><strong>${total.toFixed(2)} €</strong></div>
@@ -498,10 +505,20 @@ function getProfile() {
   return Storage.getProfile();
 }
 
+function renderProfileAvatar() {
+  const profile = getProfile();
+  const el = document.getElementById("profile-avatar");
+  if (!el) return;
+  el.innerHTML = profile.photoURL
+    ? `<img src="${profile.photoURL}" alt="">`
+    : "🙂";
+}
+
 async function renderProfile() {
   const profile = getProfile();
   document.getElementById("profile-pseudo").value = profile.pseudo;
   document.getElementById("profile-bio").value = profile.bio;
+  renderProfileAvatar();
 
   document.getElementById("profile-configs").innerHTML = `<p class="muted">Chargement...</p>`;
 
@@ -548,6 +565,9 @@ document.getElementById("save-profile").addEventListener("click", () => {
   status.classList.add("visible");
   clearTimeout(status._hideTimeout);
   status._hideTimeout = setTimeout(() => status.classList.remove("visible"), 2500);
+
+  renderAuthZone(Cloud.user); // met à jour le pseudo affiché dans la barre du haut
+  renderProfileAvatar();
 });
 
 // ---------- UTILS ----------
@@ -582,20 +602,26 @@ function renderAuthZone(user) {
     return;
   }
   if (user) {
-    zone.innerHTML = `
-      ${user.photoURL ? `<img src="${user.photoURL}" alt="">` : ""}
-      <span class="user-name">${escapeHtml(user.displayName || user.email || "Connecté")}</span>
-      <button class="btn small" id="logout-btn">Déconnexion</button>
-    `;
-    document.getElementById("logout-btn").addEventListener("click", () => Cloud.signOut());
+    const profile = getProfile();
 
     // Pré-remplit le pseudo local avec le nom Google si aucun pseudo personnalisé n'a encore été choisi
-    const profile = getProfile();
     if (!profile.googleSynced) {
       profile.pseudo = user.displayName || profile.pseudo;
       profile.googleSynced = true;
       Storage.saveProfile(profile);
     }
+    // Garde toujours la photo Google à jour (elle ne se personnalise pas dans l'app)
+    if (profile.photoURL !== user.photoURL) {
+      profile.photoURL = user.photoURL || null;
+      Storage.saveProfile(profile);
+    }
+
+    zone.innerHTML = `
+      ${profile.photoURL ? `<img src="${profile.photoURL}" alt="">` : ""}
+      <span class="user-name">${escapeHtml(profile.pseudo)}</span>
+      <button class="btn small" id="logout-btn">Déconnexion</button>
+    `;
+    document.getElementById("logout-btn").addEventListener("click", () => Cloud.signOut());
   } else {
     zone.innerHTML = `
       <button class="google-btn" id="login-btn">

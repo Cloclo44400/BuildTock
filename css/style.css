@@ -253,6 +253,16 @@ textarea { min-height: 70px; resize: vertical; }
 .stat-card strong { display: block; font-size: 1.5rem; color: var(--blue); }
 .stat-card span { color: var(--muted); font-size: 0.85rem; }
 
+/* ---------- FOOTER ---------- */
+.site-footer {
+  text-align: center;
+  padding: 30px 20px 40px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+}
+
 /* ---------- MODAL ---------- */
 .modal-overlay {
   display: none;

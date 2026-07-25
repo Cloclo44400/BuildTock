@@ -1,4 +1,4 @@
-// app.js — logique principale de l'application Build my PC
+// app.js — logique principale de l'application BuildTock
 
 let state = {
   currentPage: "accueil",

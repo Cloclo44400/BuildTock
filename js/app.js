@@ -93,6 +93,38 @@ function attachCardEvents() {
       shareConfig(btn.dataset.share);
     });
   });
+  document.querySelectorAll("[data-edit]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      editConfig(btn.dataset.edit);
+    });
+  });
+}
+
+function editConfig(configId) {
+  if (!requireLogin("Connecte-toi avec Google pour modifier une configuration.")) return;
+
+  const config = cloudCache.find(c => c.id === configId) || Storage.getConfigs().find(c => c.id === configId);
+  if (!config) {
+    alert("Configuration introuvable.");
+    return;
+  }
+
+  const isOwner = Cloud.enabled
+    ? (config.authorId && Cloud.uid && config.authorId === Cloud.uid)
+    : (config.author === getProfile().pseudo);
+  if (!isOwner) {
+    alert("Tu ne peux modifier que tes propres configurations.");
+    return;
+  }
+
+  // Clone profond pour ne pas modifier le cache tant que ce n'est pas sauvegardé/publié
+  state.currentConfig = JSON.parse(JSON.stringify(config));
+  state.currentConfig.cloudId = config.id; // pour que la publication mette à jour ce document au lieu d'en créer un nouveau
+
+  document.getElementById("modal-overlay").classList.remove("active");
+  loadConfigIntoBuilder(state.currentConfig);
+  navigate("creation");
 }
 
 function shareConfig(configId) {
@@ -299,7 +331,10 @@ document.getElementById("publish-config").addEventListener("click", async () => 
   }
 
   state.currentConfig.published = true;
-  state.currentConfig.date = Date.now();
+  if (!state.currentConfig.cloudId) {
+    state.currentConfig.date = Date.now(); // date de première publication
+  }
+  state.currentConfig.updatedAt = Date.now();
   state.currentConfig.author = getProfile().pseudo;
   state.currentConfig.authorPhotoURL = getProfile().photoURL || null;
 
@@ -370,6 +405,9 @@ function renderConfigCard(config) {
   const avgRating = getAverageRating(config);
   const myIdentity = Cloud.enabled ? Cloud.uid : getProfile().pseudo;
   const isLiked = (config.likes || []).includes(myIdentity);
+  const isOwner = Cloud.enabled
+    ? (config.authorId && Cloud.uid && config.authorId === Cloud.uid)
+    : (config.author === getProfile().pseudo);
   const authorPhoto = config.authorPhotoURL
     ? `<img class="author-avatar" src="${config.authorPhotoURL}" alt="">`
     : `<span class="author-avatar author-avatar-fallback">🙂</span>`;
@@ -381,6 +419,7 @@ function renderConfigCard(config) {
       <div class="footer-row">
         <span>⭐ ${avgRating ? avgRating.toFixed(1) : "-"} · 👁 ${config.views}</span>
         <div class="actions">
+          ${isOwner ? `<button data-edit="${config.id}" title="Modifier">✏️</button>` : ""}
           <button data-like="${config.id}" class="${isLiked ? "liked" : ""}">❤ ${config.likes.length}</button>
           <button data-share="${config.id}" title="Partager">🔗</button>
         </div>
@@ -491,10 +530,17 @@ function renderConfigModal(config) {
     ? `<img class="author-avatar" src="${config.authorPhotoURL}" alt="">`
     : `<span class="author-avatar author-avatar-fallback">🙂</span>`;
 
+  const isOwner = Cloud.enabled
+    ? (config.authorId && Cloud.uid && config.authorId === Cloud.uid)
+    : (config.author === getProfile().pseudo);
+
   document.getElementById("modal-content").innerHTML = `
     <div class="modal-title-row">
       <h2>${escapeHtml(config.name)}</h2>
-      <button id="modal-share-btn" class="btn small ghost" title="Partager">🔗 Partager</button>
+      <div class="modal-title-actions">
+        ${isOwner ? `<button id="modal-edit-btn" class="btn small ghost" title="Modifier">✏️ Modifier</button>` : ""}
+        <button id="modal-share-btn" class="btn small ghost" title="Partager">🔗 Partager</button>
+      </div>
     </div>
     <p class="meta author-line">${authorPhoto}Par ${escapeHtml(config.author)} · ${formatDate(config.date)}</p>
     <p>${escapeHtml(config.description || "")}</p>
@@ -542,6 +588,8 @@ function renderConfigModal(config) {
 
   document.getElementById("submit-comment").addEventListener("click", () => submitComment(config.id));
   document.getElementById("modal-share-btn").addEventListener("click", () => shareConfig(config.id));
+  const editBtn = document.getElementById("modal-edit-btn");
+  if (editBtn) editBtn.addEventListener("click", () => editConfig(config.id));
 
   document.getElementById("modal-content").querySelectorAll(".rate-btn").forEach(btn => {
     btn.addEventListener("click", () => {

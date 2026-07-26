@@ -304,6 +304,7 @@ textarea { min-height: 70px; resize: vertical; }
   display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
 }
 .modal-title-row h2 { margin: 0; }
+.modal-title-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
 .app-toast {
   position: fixed;

@@ -96,6 +96,7 @@ const Cloud = {
       authorPseudo: config.author,
       authorPhotoURL: config.authorPhotoURL || null,
       date: config.date || Date.now(),
+      updatedAt: config.updatedAt || Date.now(),
       views: config.views || 0,
       likes: config.likes || [],
       ratings: config.ratings || [],

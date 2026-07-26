@@ -300,7 +300,7 @@ function syncBuilderToState() {
   state.currentConfig.budget = parseFloat(document.getElementById("cfg-budget").value) || null;
 }
 
-document.getElementById("save-config").addEventListener("click", () => {
+document.getElementById("save-config").addEventListener("click", async () => {
   if (!requireLogin("Connecte-toi avec Google pour sauvegarder ta configuration.")) return;
 
   if (!state.currentConfig) state.currentConfig = newEmptyConfig();
@@ -311,8 +311,30 @@ document.getElementById("save-config").addEventListener("click", () => {
     return;
   }
 
-  Storage.addOrUpdateConfig(state.currentConfig);
-  alert("Configuration sauvegardée ✅");
+  const btn = document.getElementById("save-config");
+  btn.disabled = true;
+  const originalLabel = btn.textContent;
+
+  try {
+    // Si la config est déjà publiée (a un cloudId), on met aussi à jour la version en ligne
+    // — sinon "Sauvegarder" ne ferait qu'un brouillon local invisible pour tout le monde.
+    if (Cloud.enabled && state.currentConfig.cloudId) {
+      btn.textContent = "Sauvegarde en cours...";
+      state.currentConfig.author = getProfile().pseudo;
+      state.currentConfig.authorPhotoURL = getProfile().photoURL || null;
+      state.currentConfig.updatedAt = Date.now();
+      await Cloud.publish(state.currentConfig);
+    }
+
+    Storage.addOrUpdateConfig(state.currentConfig);
+    alert("Configuration sauvegardée ✅");
+  } catch (err) {
+    console.error(err);
+    alert("Erreur lors de la sauvegarde : " + (err.message || err));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
 });
 
 document.getElementById("publish-config").addEventListener("click", async () => {

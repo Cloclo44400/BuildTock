@@ -3,6 +3,22 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Détermine si l'utilisateur connecté est administrateur.
+    // Un compte devient admin quand un document existe : admins/{son_uid}
+    // (à créer manuellement dans la Console Firebase, voir instructions du projet)
+    function isAdmin() {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    match /admins/{uid} {
+      // Un utilisateur connecté peut seulement vérifier SON PROPRE statut admin.
+      // Personne ne peut lister les autres admins, ni s'ajouter soi-même.
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list: if false;
+      allow write: if false; // uniquement modifiable depuis la Console Firebase
+    }
+
     match /configs/{configId} {
 
       // Tout le monde peut lire les configs publiées (communauté publique)
@@ -18,17 +34,21 @@ service cloud.firestore {
 
       // Modifier une config :
       // - l'auteur peut tout modifier (édition de sa propre config)
+      // - un admin peut tout modifier (modération)
       // - un autre utilisateur connecté peut UNIQUEMENT modifier likes / ratings / viewedBy / views / comments
       //   (empêche de trafiquer le nom, le prix, les composants d'une config qui n'est pas la sienne)
       allow update: if request.auth != null && (
         resource.data.authorId == request.auth.uid
         ||
+        isAdmin()
+        ||
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['likes', 'ratings', 'viewedBy', 'views', 'comments'])
       );
 
-      // Supprimer : seul l'auteur peut supprimer sa config
-      allow delete: if request.auth != null && resource.data.authorId == request.auth.uid;
+      // Supprimer : l'auteur ou un admin peuvent supprimer la config
+      allow delete: if request.auth != null &&
+                    (resource.data.authorId == request.auth.uid || isAdmin());
     }
   }
 }

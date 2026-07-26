@@ -7,6 +7,7 @@ const Cloud = {
   auth: null,
   uid: null,
   user: null,   // { uid, displayName, photoURL, email }
+  isAdmin: false,
   ready: null,  // promesse résolue quand Firebase est initialisé (connecté ou non)
   enabled: true,
   onAuthChange: null, // callback optionnel(user) déclenché à chaque changement d'état de connexion
@@ -25,7 +26,7 @@ const Cloud = {
         this.db = firebase.firestore();
         this.auth = firebase.auth();
 
-        this.auth.onAuthStateChanged(user => {
+        this.auth.onAuthStateChanged(async user => {
           if (user) {
             this.uid = user.uid;
             this.user = {
@@ -34,9 +35,11 @@ const Cloud = {
               photoURL: user.photoURL,
               email: user.email
             };
+            this.isAdmin = await this.checkAdmin();
           } else {
             this.uid = null;
             this.user = null;
+            this.isAdmin = false;
           }
           if (this.onAuthChange) this.onAuthChange(this.user);
           resolve(true);
@@ -48,6 +51,18 @@ const Cloud = {
       }
     });
     return this.ready;
+  },
+
+  // Vérifie si l'utilisateur connecté a un document admins/{uid} dans Firestore
+  async checkAdmin() {
+    if (!this.uid) return false;
+    try {
+      const doc = await this.db.collection("admins").doc(this.uid).get();
+      return doc.exists;
+    } catch (err) {
+      console.warn("Vérification admin impossible (normal si pas encore admin) :", err.message);
+      return false;
+    }
   },
 
   async signInWithGoogle() {
@@ -176,5 +191,11 @@ const Cloud = {
       counted = true;
     });
     return counted;
+  },
+
+  async deleteConfig(cloudId) {
+    if (!this.enabled) return;
+    if (!this.isLoggedIn()) throw new Error("Connecte-toi pour supprimer une configuration");
+    await this.configsCollection().doc(cloudId).delete();
   }
 };

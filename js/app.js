@@ -99,6 +99,20 @@ function attachCardEvents() {
       editConfig(btn.dataset.edit);
     });
   });
+  document.querySelectorAll("[data-delete]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      deleteConfigAction(btn.dataset.delete);
+    });
+  });
+}
+
+// Vrai si l'utilisateur courant est l'auteur de la config, OU un administrateur
+function canManage(config) {
+  if (Cloud.enabled && Cloud.isAdmin) return true;
+  return Cloud.enabled
+    ? (config.authorId && Cloud.uid && config.authorId === Cloud.uid)
+    : (config.author === getProfile().pseudo);
 }
 
 function editConfig(configId) {
@@ -110,10 +124,7 @@ function editConfig(configId) {
     return;
   }
 
-  const isOwner = Cloud.enabled
-    ? (config.authorId && Cloud.uid && config.authorId === Cloud.uid)
-    : (config.author === getProfile().pseudo);
-  if (!isOwner) {
+  if (!canManage(config)) {
     alert("Tu ne peux modifier que tes propres configurations.");
     return;
   }
@@ -125,6 +136,45 @@ function editConfig(configId) {
   document.getElementById("modal-overlay").classList.remove("active");
   loadConfigIntoBuilder(state.currentConfig);
   navigate("creation");
+}
+
+async function deleteConfigAction(configId) {
+  if (!requireLogin("Connecte-toi avec Google pour supprimer une configuration.")) return;
+
+  const config = cloudCache.find(c => c.id === configId) || Storage.getConfigs().find(c => c.id === configId);
+  if (!config) {
+    alert("Configuration introuvable.");
+    return;
+  }
+  if (!canManage(config)) {
+    alert("Tu ne peux supprimer que tes propres configurations.");
+    return;
+  }
+
+  const isAdminDeletingOthers = Cloud.isAdmin && config.authorId !== Cloud.uid;
+  const warning = isAdminDeletingOthers
+    ? `Supprimer "${config.name}" publiée par ${config.author} ? (action de modération, définitive)`
+    : `Supprimer définitivement "${config.name}" ?`;
+  if (!confirm(warning)) return;
+
+  try {
+    if (Cloud.enabled) {
+      await Cloud.deleteConfig(configId);
+    }
+    const configs = Storage.getConfigs().filter(c => c.id !== configId);
+    Storage.saveConfigs(configs);
+    cloudCache = cloudCache.filter(c => c.id !== configId);
+
+    document.getElementById("modal-overlay").classList.remove("active");
+    showToast("🗑️ Configuration supprimée");
+
+    if (state.currentPage === "communaute") renderCommunity();
+    else if (state.currentPage === "accueil") renderHome();
+    else if (state.currentPage === "profil") renderProfile();
+  } catch (err) {
+    console.error(err);
+    alert("Erreur lors de la suppression : " + (err.message || err));
+  }
 }
 
 function shareConfig(configId) {
@@ -427,9 +477,7 @@ function renderConfigCard(config) {
   const avgRating = getAverageRating(config);
   const myIdentity = Cloud.enabled ? Cloud.uid : getProfile().pseudo;
   const isLiked = (config.likes || []).includes(myIdentity);
-  const isOwner = Cloud.enabled
-    ? (config.authorId && Cloud.uid && config.authorId === Cloud.uid)
-    : (config.author === getProfile().pseudo);
+  const isManageable = canManage(config);
   const authorPhoto = config.authorPhotoURL
     ? `<img class="author-avatar" src="${config.authorPhotoURL}" alt="">`
     : `<span class="author-avatar author-avatar-fallback">🙂</span>`;
@@ -441,7 +489,8 @@ function renderConfigCard(config) {
       <div class="footer-row">
         <span>⭐ ${avgRating ? avgRating.toFixed(1) : "-"} · 👁 ${config.views}</span>
         <div class="actions">
-          ${isOwner ? `<button data-edit="${config.id}" title="Modifier">✏️</button>` : ""}
+          ${isManageable ? `<button data-edit="${config.id}" title="Modifier">✏️</button>` : ""}
+          ${isManageable ? `<button data-delete="${config.id}" title="Supprimer">🗑️</button>` : ""}
           <button data-like="${config.id}" class="${isLiked ? "liked" : ""}">❤ ${config.likes.length}</button>
           <button data-share="${config.id}" title="Partager">🔗</button>
         </div>
@@ -552,15 +601,14 @@ function renderConfigModal(config) {
     ? `<img class="author-avatar" src="${config.authorPhotoURL}" alt="">`
     : `<span class="author-avatar author-avatar-fallback">🙂</span>`;
 
-  const isOwner = Cloud.enabled
-    ? (config.authorId && Cloud.uid && config.authorId === Cloud.uid)
-    : (config.author === getProfile().pseudo);
+  const isManageable = canManage(config);
 
   document.getElementById("modal-content").innerHTML = `
     <div class="modal-title-row">
       <h2>${escapeHtml(config.name)}</h2>
       <div class="modal-title-actions">
-        ${isOwner ? `<button id="modal-edit-btn" class="btn small ghost" title="Modifier">✏️ Modifier</button>` : ""}
+        ${isManageable ? `<button id="modal-edit-btn" class="btn small ghost" title="Modifier">✏️ Modifier</button>` : ""}
+        ${isManageable ? `<button id="modal-delete-btn" class="btn small ghost" title="Supprimer">🗑️ Supprimer</button>` : ""}
         <button id="modal-share-btn" class="btn small ghost" title="Partager">🔗 Partager</button>
       </div>
     </div>
@@ -612,6 +660,8 @@ function renderConfigModal(config) {
   document.getElementById("modal-share-btn").addEventListener("click", () => shareConfig(config.id));
   const editBtn = document.getElementById("modal-edit-btn");
   if (editBtn) editBtn.addEventListener("click", () => editConfig(config.id));
+  const deleteBtn = document.getElementById("modal-delete-btn");
+  if (deleteBtn) deleteBtn.addEventListener("click", () => deleteConfigAction(config.id));
 
   document.getElementById("modal-content").querySelectorAll(".rate-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -718,6 +768,18 @@ async function renderProfile() {
   document.getElementById("profile-pseudo").value = profile.pseudo;
   document.getElementById("profile-bio").value = profile.bio;
   renderProfileAvatar();
+
+  const uidBox = document.getElementById("profile-uid-box");
+  if (Cloud.enabled && Cloud.uid) {
+    uidBox.style.display = "block";
+    document.getElementById("profile-uid-value").textContent = Cloud.uid;
+    document.getElementById("copy-uid-btn").onclick = () => {
+      navigator.clipboard.writeText(Cloud.uid).then(() => showToast("✓ Identifiant copié"))
+        .catch(() => prompt("Copie ton identifiant :", Cloud.uid));
+    };
+  } else {
+    uidBox.style.display = "none";
+  }
 
   document.getElementById("profile-configs").innerHTML = `<p class="muted">Chargement...</p>`;
 
@@ -898,6 +960,7 @@ function renderAuthZone(user) {
     zone.innerHTML = `
       ${profile.photoURL ? `<img src="${profile.photoURL}" alt="">` : ""}
       <span class="user-name">${escapeHtml(profile.pseudo)}</span>
+      ${Cloud.isAdmin ? `<span class="admin-badge" title="Compte administrateur">🛡️ Admin</span>` : ""}
       <button class="btn small" id="logout-btn">Déconnexion</button>
     `;
     document.getElementById("logout-btn").addEventListener("click", () => Cloud.signOut());

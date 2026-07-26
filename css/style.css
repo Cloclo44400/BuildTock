@@ -65,6 +65,11 @@ body {
 .auth-zone { display: flex; align-items: center; gap: 10px; }
 .auth-zone img { width: 30px; height: 30px; border-radius: 50%; }
 .auth-zone .user-name { font-size: 0.85rem; color: var(--muted); }
+.admin-badge {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  color: white; font-size: 0.75rem; font-weight: 600;
+  padding: 3px 10px; border-radius: 999px;
+}
 .google-btn {
   display: flex; align-items: center; gap: 8px;
   background: var(--card); border: 1px solid var(--border); color: var(--text);
@@ -272,6 +277,16 @@ textarea { min-height: 70px; resize: vertical; }
 }
 .stat-card strong { display: block; font-size: 1.5rem; color: var(--blue); }
 .stat-card span { color: var(--muted); font-size: 0.85rem; }
+
+.uid-box {
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; margin-bottom: 20px;
+}
+.uid-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.uid-row code {
+  background: var(--bg-soft); padding: 6px 10px; border-radius: 8px;
+  font-size: 0.85rem; overflow-x: auto; flex: 1;
+}
 
 /* ---------- FOOTER ---------- */
 .site-footer {

@@ -105,6 +105,7 @@ const Cloud = {
     const payload = {
       name: config.name,
       description: config.description || "",
+      thumbnail: config.thumbnail || null,
       budget: config.budget || null,
       components: config.components,
       authorId: this.uid,

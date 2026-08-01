@@ -230,6 +230,7 @@ function newEmptyConfig() {
     name: "",
     description: "",
     budget: null,
+    thumbnail: null,
     components: [],
     author: getProfile().pseudo,
     date: Date.now(),
@@ -341,8 +342,55 @@ function loadConfigIntoBuilder(config) {
   document.getElementById("cfg-name").value = config.name || "";
   document.getElementById("cfg-desc").value = config.description || "";
   document.getElementById("cfg-budget").value = config.budget || "";
+  renderThumbnailPreview();
   renderComponents();
 }
+
+function renderThumbnailPreview() {
+  const preview = document.getElementById("thumbnail-preview");
+  const removeBtn = document.getElementById("thumbnail-remove");
+  const thumb = state.currentConfig && state.currentConfig.thumbnail;
+  if (thumb) {
+    preview.innerHTML = `<img src="${thumb}" alt="">`;
+    removeBtn.style.display = "inline-flex";
+  } else {
+    preview.innerHTML = `<span class="thumbnail-placeholder">🖼️ Aucune image</span>`;
+    removeBtn.style.display = "none";
+  }
+}
+
+document.getElementById("thumbnail-input").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    alert("Merci de choisir un fichier image.");
+    e.target.value = "";
+    return;
+  }
+  if (!state.currentConfig) state.currentConfig = newEmptyConfig();
+
+  const preview = document.getElementById("thumbnail-preview");
+  preview.innerHTML = `<span class="thumbnail-placeholder">⏳ Traitement...</span>`;
+
+  try {
+    // Miniature au format 16:9, un peu plus grande que l'avatar pour rester nette sur les cartes
+    const dataUrl = await resizeImageFile(file, 480, 270, 0.8);
+    state.currentConfig.thumbnail = dataUrl;
+    renderThumbnailPreview();
+  } catch (err) {
+    console.error("[BuildTock] Erreur upload miniature :", err);
+    alert("Erreur lors du chargement de l'image : " + err.message);
+    renderThumbnailPreview();
+  }
+  e.target.value = "";
+});
+
+document.getElementById("thumbnail-remove").addEventListener("click", () => {
+  if (!state.currentConfig) return;
+  state.currentConfig.thumbnail = null;
+  renderThumbnailPreview();
+});
 
 function syncBuilderToState() {
   state.currentConfig.name = document.getElementById("cfg-name").value.trim();
@@ -483,6 +531,7 @@ function renderConfigCard(config) {
     : `<span class="author-avatar author-avatar-fallback">🙂</span>`;
   return `
     <div class="card" data-config="${config.id}">
+      ${config.thumbnail ? `<div class="card-thumbnail"><img src="${config.thumbnail}" alt=""></div>` : ""}
       <h3>${escapeHtml(config.name)}</h3>
       <p class="meta author-line">${authorPhoto}${escapeHtml(config.author)} · ${formatDate(config.date)}</p>
       <div class="price">${configTotal(config).toFixed(2)} €${config.budget ? " / " + config.budget + " €" : ""}</div>
@@ -604,6 +653,7 @@ function renderConfigModal(config) {
   const isManageable = canManage(config);
 
   document.getElementById("modal-content").innerHTML = `
+    ${config.thumbnail ? `<div class="modal-thumbnail"><img src="${config.thumbnail}" alt=""></div>` : ""}
     <div class="modal-title-row">
       <h2>${escapeHtml(config.name)}</h2>
       <div class="modal-title-actions">
@@ -804,7 +854,7 @@ async function renderProfile() {
 }
 
 // Redimensionne/compresse une image dans un carré (via canvas) et renvoie un data URL JPEG léger
-function resizeImageFile(file, maxSize = 160, quality = 0.85) {
+function resizeImageFile(file, targetWidth = 160, targetHeight = targetWidth, quality = 0.85) {
   const work = new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("Impossible de lire le fichier."));
@@ -813,17 +863,26 @@ function resizeImageFile(file, maxSize = 160, quality = 0.85) {
       img.onerror = () => reject(new Error("Fichier image invalide ou corrompu."));
       img.onload = () => {
         try {
-          // Recadrage carré centré
-          const side = Math.min(img.naturalWidth, img.naturalHeight);
-          const sx = (img.naturalWidth - side) / 2;
-          const sy = (img.naturalHeight - side) / 2;
+          // Recadrage centré au bon ratio (carré pour un avatar, 16:9 pour une miniature, etc.)
+          const targetRatio = targetWidth / targetHeight;
+          const srcRatio = img.naturalWidth / img.naturalHeight;
+          let sw, sh;
+          if (srcRatio > targetRatio) {
+            sh = img.naturalHeight;
+            sw = sh * targetRatio;
+          } else {
+            sw = img.naturalWidth;
+            sh = sw / targetRatio;
+          }
+          const sx = (img.naturalWidth - sw) / 2;
+          const sy = (img.naturalHeight - sh) / 2;
 
           const canvas = document.createElement("canvas");
-          canvas.width = maxSize;
-          canvas.height = maxSize;
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
           const ctx = canvas.getContext("2d");
           if (!ctx) throw new Error("Le navigateur ne permet pas de traiter l'image (canvas indisponible).");
-          ctx.drawImage(img, sx, sy, side, side, 0, 0, maxSize, maxSize);
+          ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetWidth, targetHeight);
 
           const dataUrl = canvas.toDataURL("image/jpeg", quality);
           if (!dataUrl || dataUrl === "data:,") throw new Error("Échec de la conversion de l'image.");
@@ -928,6 +987,7 @@ function formatDate(timestamp) {
 
 state.currentConfig = newEmptyConfig();
 renderComponents();
+renderThumbnailPreview();
 
 Cloud.onAuthChange = (user) => {
   renderAuthZone(user);

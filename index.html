@@ -45,6 +45,19 @@
         <label>Nom de la configuration</label>
         <input type="text" id="cfg-name" placeholder="Ma super config">
 
+        <label>Miniature <span class="muted">(optionnel)</span></label>
+        <div class="thumbnail-upload">
+          <div class="thumbnail-preview" id="thumbnail-preview">
+            <span class="thumbnail-placeholder">🖼️ Aucune image</span>
+          </div>
+          <div class="thumbnail-buttons">
+            <label class="btn small ghost file-btn">Choisir une image
+              <input type="file" id="thumbnail-input" accept="image/*" hidden>
+            </label>
+            <button type="button" id="thumbnail-remove" class="btn small ghost" style="display:none;">Retirer</button>
+          </div>
+        </div>
+
         <label>Description</label>
         <textarea id="cfg-desc" placeholder="Décris ta config..."></textarea>
 

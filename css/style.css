@@ -382,3 +382,94 @@ textarea { min-height: 70px; resize: vertical; }
 .comment-item .author-avatar { width: 28px; height: 28px; margin-top: 2px; }
 .comment-meta { font-size: 0.85rem; margin-bottom: 4px; }
 .comment-text { font-size: 0.9rem; white-space: pre-wrap; word-break: break-word; }
+
+/* ================= RESPONSIVE / MOBILE ================= */
+
+@media (max-width: 640px) {
+  main { padding: 16px; }
+
+  /* Topbar : passe sur plusieurs lignes proprement au lieu de déborder */
+  .topbar {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 16px;
+    row-gap: 10px;
+  }
+  .logo { font-size: 1.05rem; }
+
+  /* Nav en scroll horizontal plutôt qu'en retour à la ligne multiple (garde une barre compacte) */
+  .mainnav {
+    order: 3;
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .mainnav::-webkit-scrollbar { display: none; }
+  .nav-btn { flex-shrink: 0; padding: 7px 12px; font-size: 0.85rem; }
+
+  .auth-zone { order: 2; margin-left: auto; }
+  .auth-zone .user-name { display: none; } /* garde juste photo + badge + déconnexion, gain de place */
+
+  /* Hero */
+  .hero { padding: 24px 4px 16px; }
+  .hero h1 { font-size: 1.8rem; }
+  .hero-actions { flex-direction: column; align-items: stretch; }
+  .hero-actions .btn { width: 100%; }
+
+  .section-title { margin-top: 28px; font-size: 1.1rem; }
+
+  /* Cartes : une seule colonne, plus lisible au doigt */
+  .card-grid { grid-template-columns: 1fr; }
+  .card-thumbnail { height: 170px; }
+
+  /* Builder */
+  .builder-summary { position: static; } /* évite un "sticky" gênant une fois empilé sous le formulaire */
+  .component-row { grid-template-columns: 1fr; }
+  .component-row .row-head select { flex: none; width: 100%; margin-right: 0; margin-bottom: 6px; }
+  .thumbnail-upload { flex-direction: column; align-items: flex-start; }
+  .thumbnail-preview { width: 100%; height: auto; aspect-ratio: 16 / 9; }
+  .builder-actions { flex-direction: column; }
+  .builder-actions .btn { width: 100%; text-align: center; }
+
+  /* Communauté */
+  .community-toolbar { flex-direction: column; }
+  .community-toolbar input, .community-toolbar select { width: 100%; }
+
+  /* Profil */
+  .profile-box { flex-direction: column; align-items: center; text-align: center; }
+  .profile-box > div { width: 100%; }
+  .profile-save-row { flex-direction: column; align-items: stretch; }
+  .profile-save-row .btn { width: 100%; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .uid-row { flex-direction: column; align-items: stretch; }
+  .uid-row code { word-break: break-all; }
+
+  /* Modale */
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal {
+    max-width: 100%;
+    max-height: 92vh;
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding: 20px 16px;
+  }
+  .modal-title-row { flex-direction: column; }
+  .modal-title-actions { width: 100%; flex-wrap: wrap; }
+  .modal-title-actions .btn { flex: 1; text-align: center; }
+  .modal-thumbnail img { max-height: 200px; }
+
+  .card .footer-row { flex-wrap: wrap; gap: 8px; }
+  .card .actions { gap: 4px; }
+  .card .actions button {
+    min-width: 36px; min-height: 36px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .admin-badge { display: none; } /* trop peu de place sur très petits écrans, reste visible dans le Profil */
+}
